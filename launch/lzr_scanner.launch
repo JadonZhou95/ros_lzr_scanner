@@ -1,0 +1,5 @@
+<launch>
+    <node pkg="tf" name="lzr_link_broadcaster" type="static_transform_publisher" args="0 0 0 0 0 0 1 world lzr_scanner_frame 100" />
+
+    <node pkg="lzr_scanner_driver" name="lzr_scanner_node" type="lzr_scanner_node.py" output="screen" />
+</launch>

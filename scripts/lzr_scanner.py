@@ -90,19 +90,22 @@ class LzrScanner():
         #     sync_bytes[0] = binascii.hexlify(self.ser.read())
         #
         #     # check the content
-        #     if (sync_bytes[0] + sync_bytes[1] + sync_bytes[2]
-        #             + syqqqnc_bytes[3] == self.sync):
-        #         print("Frame captured!")
-        #         break
+        #     try:
+        #         if (sync_bytes[0] + sync_bytes[1] + sync_bytes[2]
+        #             + sync_bytes[3] == b'fffefdfc'):
+        #             print("Frame captured!")
+        #             break
+        #     except TypeError:
+        #         pass
 
         while not self.lookup_sync():
             pass
 
-        print('Frame captured!')
+        # print('Frame captured!')
         self.msg_size = int.from_bytes(self.ser.read(2),
                                        byteorder='little',
                                        signed=True)
-        print('Msg Size: {}'.format(self.msg_size))
+        # print('Msg Size: {}'.format(self.msg_size))
 
         # raw message info (cmd + options + data)
         self.message = self.ser.read(self.msg_size)
@@ -115,17 +118,14 @@ class LzrScanner():
         self.p1_msg = self.message[-1098: -549]
         self.p4_msg = self.message[-1647: -1098]
         self.p2_msg = self.message[-2196: -1647]
+        # print(len(self.p3_msg), len(self.p1_msg), len(self.p4_msg), len(self.p2_msg))
 
-        # check plane num
-        # print(self.p3_msg[0], self.p1_msg[0], self.p4_msg[0], self.p2_msg[0])
-
+        # examine the msg size
         try:
-            assert self.p3_msg[0] == 3, "Fail to interpret the msg"
-            assert self.p1_msg[0] == 2, "Fail to interpret the msg"
-            assert self.p4_msg[0] == 1, "Fail to interpret the msg"
-            assert self.p2_msg[0] == 0, "Fail to interpret the msg"
+            assert (self.p3_msg[0], self.p1_msg[0], self.p4_msg[0], self.p2_msg[0]) \
+                   == (3, 2, 1, 0), "Fail to interpret the msg"
         except AssertionError:
-            print("error\n\n\n")
+            # print("error\n\n")
             return -1
 
         # convert bytes to integers (ignore the plane_num)
@@ -142,6 +142,7 @@ class LzrScanner():
                                         byteorder='little', signed=True)
                          for i in range((len(self.p2_msg) - 1) // 2)]
 
+        # convert list into np array for further processing
         self.p3_dists = np.asarray(self.p3_dists).astype('float32').reshape(274, 1)
         self.p1_dists = np.asarray(self.p1_dists).astype('float32').reshape(274, 1)
         self.p4_dists = np.asarray(self.p4_dists).astype('float32').reshape(274, 1)
@@ -152,8 +153,7 @@ class LzrScanner():
         # print(self.p4_dists[132:142])
         # print(self.p2_dists[132:142])
 
-        # GET THE POSITION INFO
-        # self.p2_dists =
+        # Compute the position info
         # print(self.converter)
         # print(self.thetas.shape)
         self.p3_points = self.converter * np.array([[np.cos(self.alphas[2]), np.cos(self.alphas[2]),
@@ -164,8 +164,8 @@ class LzrScanner():
                                                      np.sin(self.alphas[3])]], dtype='float32') * self.p4_dists
         self.p2_points = self.converter * np.array([[np.cos(self.alphas[1]), np.cos(self.alphas[1]),
                                                      np.sin(self.alphas[1])]], dtype='float32') * self.p2_dists
-
         # print(self.p1_points[132:142])
+
         return 0
 
     def lookup_sync(self, flag=0):
@@ -191,7 +191,7 @@ class LzrScanner():
             return False
 
     def visualize_scan(self):
-
+        """visualize the 3d points"""
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         ax.scatter(self.p1_points[:, 0], self.p1_points[:, 1], self.p1_points[:, 2], c='r')
